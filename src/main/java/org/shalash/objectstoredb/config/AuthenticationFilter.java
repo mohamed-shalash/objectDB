@@ -4,7 +4,10 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.shalash.objectstoredb.service.AuthenticationService;
+import org.shalash.objectstoredb.service.AuthorizationService;
+import org.shalash.objectstoredb.utils.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -13,6 +16,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 @Component
+@RequiredArgsConstructor
 public class AuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger log =
@@ -20,9 +24,8 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 
     private final AuthenticationService authService;
 
-    public AuthenticationFilter(AuthenticationService authService) {
-        this.authService = authService;
-    }
+    private final AuthorizationService authorizationService;
+
 
     @Override
     protected void doFilterInternal(
@@ -33,7 +36,7 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 
         String header = request.getHeader("Authorization");
         if (header == null || !header.startsWith("AWS4-HMAC-SHA256")) {
-            reject(response);
+            reject(response, "AccessDenied", "Missing or invalid Authorization header");
             return;
         }
 
@@ -46,7 +49,7 @@ public class AuthenticationFilter extends OncePerRequestFilter {
             if (parts.length != 5
                     || !"s3".equals(parts[3])
                     || !"aws4_request".equals(parts[4])) {
-                reject(response);
+                reject(response, "AccessDenied", "Invalid credential scope");
                 return;
             }
 
@@ -63,28 +66,44 @@ public class AuthenticationFilter extends OncePerRequestFilter {
                     region);
 
             if (!ok) {
-                reject(response);
+                reject(response, "SignatureDoesNotMatch", "Signature verification failed");
+                return;
+            }
+            String uri = request.getRequestURI();
+            String[] seg = uri.split("/");   // ["", "my-bucket", "video.mp4"]
+            String bucket = seg[1];
+            String key = FileUtils.extractKey(request, bucket);
+            String authority = switch (request.getMethod()) {
+                case "GET", "HEAD" -> "read";
+                case "PUT", "POST" -> "write";
+                case "DELETE" -> "delete";
+                default -> "";
+            };
+            String resource = bucket + (key.isEmpty() ? "" : "/" + key);
+            if (!authorizationService.isAuthorized(resource, accessKey, authority)) {
+                reject(response, "AccessDenied", "Not authorized for this operation on " + key);
+                log.error("Not authorized for this operation on {}", key);
                 return;
             }
 
         } catch (Exception e) {
             log.error("Authentication failed", e);
-            reject(response);
+            reject(response, "AccessDenied", "Authentication error");
             return;
         }
 
         chain.doFilter(request, response);
     }
 
-    private void reject(HttpServletResponse response) throws IOException {
+    private void reject(HttpServletResponse response, String code, String message) throws IOException {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType("application/xml");
         response.getWriter().write("""
                 <Error>
-                    <Code>AccessDenied</Code>
-                    <Message>Signature verification failed</Message>
+                    <Code>%s</Code>
+                    <Message>%s</Message>
                 </Error>
-                """.trim());
+                """.formatted(code, message).trim());
     }
 
     private String extract(String header, String key, String endDelimiter) {

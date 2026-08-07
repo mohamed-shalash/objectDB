@@ -48,7 +48,8 @@ public class AutoCreateTable {
 
             jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS credentials (
-                access_key TEXT PRIMARY KEY,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                access_key TEXT NOT NULL UNIQUE,
                 secret_key TEXT NOT NULL,
                 active INTEGER DEFAULT 1
             );
@@ -56,8 +57,58 @@ public class AutoCreateTable {
             log.info(" Table 'credentials' created successfully");
 
             jdbcTemplate.execute("""
-            INSERT OR IGNORE INTO credentials(access_key, secret_key) VALUES ('test', 'test');
+            INSERT OR IGNORE INTO credentials(id,access_key, secret_key) VALUES (1,'test', 'test');
         """);
+
+            jdbcTemplate.execute("PRAGMA foreign_keys = ON");
+
+            jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS permissions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                authority TEXT NOT NULL UNIQUE
+            );
+        """);
+            log.info(" Table 'permissions' created successfully");
+
+            jdbcTemplate.execute("""
+            INSERT OR IGNORE INTO permissions(id,authority) VALUES (1,'read');
+        """);
+
+            jdbcTemplate.execute("""
+            INSERT OR IGNORE INTO permissions(id, authority) VALUES (2,'write');
+        """);
+
+            jdbcTemplate.execute("""
+            INSERT OR IGNORE INTO permissions(id, authority) VALUES (3,'delete');
+        """);
+
+            jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS authorization (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL REFERENCES credentials(id),
+                pattern TEXT NOT NULL
+            );
+        """);
+            log.info(" Table 'authorization' created successfully");
+
+            jdbcTemplate.execute("""
+            INSERT OR IGNORE INTO authorization(id,user_id, pattern) VALUES (1,1 ,'*');
+        """);
+
+
+            jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS authorization_permission (
+                  authorization_id INTEGER NOT NULL REFERENCES authorization(id),
+                  permission_id INTEGER NOT NULL REFERENCES permissions(id),
+                  PRIMARY KEY (authorization_id, permission_id)
+              );
+        """);
+            log.info(" Table 'authorization_permission' created successfully");
+
+            jdbcTemplate.execute("INSERT OR IGNORE INTO authorization_permission VALUES (1,1)");
+            jdbcTemplate.execute("INSERT OR IGNORE INTO authorization_permission VALUES (1,2)");
+            jdbcTemplate.execute("INSERT OR IGNORE INTO authorization_permission VALUES (1,3)");
+
         } catch (Exception e) {
             log.warn(" Failed to create versions or objects tables: " + e.getMessage());
         }
