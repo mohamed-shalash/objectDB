@@ -46,6 +46,18 @@ public class AutoCreateTable {
         """);
             log.info(" Table 'objects' created successfully");
 
+            jdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS credentials (
+                access_key TEXT PRIMARY KEY,
+                secret_key TEXT NOT NULL,
+                active INTEGER DEFAULT 1
+            );
+        """);
+            log.info(" Table 'credentials' created successfully");
+
+            jdbcTemplate.execute("""
+            INSERT OR IGNORE INTO credentials(access_key, secret_key) VALUES ('test', 'test');
+        """);
         } catch (Exception e) {
             log.warn(" Failed to create versions or objects tables: " + e.getMessage());
         }
