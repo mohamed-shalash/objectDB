@@ -1,0 +1,15 @@
+package org.shalash.adminapi.dto.response;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class GenerateHmacResponse {
+    private String hmac;
+    private String timestamp;
+}
