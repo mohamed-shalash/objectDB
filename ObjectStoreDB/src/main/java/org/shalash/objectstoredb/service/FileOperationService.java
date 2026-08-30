@@ -83,6 +83,16 @@ public class FileOperationService {
         Files.createDirectories(dir);
 
         Path partPath = dir.resolve("part-" + partNumber);
+        Path etagPath = dir.resolve("part-" + partNumber + ".etag");
+
+        if (Files.exists(partPath) && Files.exists(etagPath)) {
+            String existingEtag = Files.readString(etagPath).trim();
+            log.info("Part " + partNumber + " already exists → skip re-upload (ETag: " + existingEtag + ")");
+            try (InputStream skip = request.getInputStream()) {
+                skip.transferTo(java.io.OutputStream.nullOutputStream());
+            }
+            return existingEtag;
+        }
 
         MessageDigest md = MessageDigest.getInstance("MD5");
 
@@ -121,8 +131,8 @@ public class FileOperationService {
 
         log.info("✅ Part " + partNumber + " uploaded | ETag: " + etag);
 
-        Path etagFile = dir.resolve("part-" + partNumber + ".etag");
-        Files.writeString(etagFile, etag);
+        Path etagFilePath = dir.resolve("part-" + partNumber + ".etag");
+        Files.writeString(etagFilePath, etag);
 
         return etag;
     }

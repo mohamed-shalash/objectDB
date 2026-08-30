@@ -39,7 +39,6 @@ public class AwsChunkedInputStream extends InputStream {
 
         remainingChunkBytes--;
 
-        // بعد نهاية chunk فيه \r\n
         if (remainingChunkBytes == 0) {
 
             in.read(); // \r
@@ -66,7 +65,6 @@ public class AwsChunkedInputStream extends InputStream {
 
             finished = true;
 
-            // اقرأ آخر CRLF
             readLine();
 
             return;

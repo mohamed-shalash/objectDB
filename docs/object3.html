@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Object3 — S3-Compatible Object Store</title>
+<style>
+  :root{
+    --bg:#0b1117; --panel:#111a23; --panel2:#0e1620; --border:#1f2c3a;
+    --text:#d5e0ea; --muted:#8aa0b5; --accent:#3ba77d; --accent2:#4fc3a1;
+    --code-bg:#0a0f15; --keyword:#79c0ff; --string:#a5d6ff; --comment:#7d8b99;
+    --num:#f0a35e; --warn:#ecc48d;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);font:15px/1.7 "Segoe UI",system-ui,-apple-system,sans-serif}
+  a{color:var(--accent2);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* layout */
+  .layout{display:flex;min-height:100vh}
+  nav{
+    width:290px;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto;
+    background:var(--panel);border-right:1px solid var(--border);padding:18px 14px;
+  }
+  nav h1{font-size:17px;margin:0 0 4px;color:#fff}
+  nav p#subttl{margin:0 0 14px;font-size:12px;color:var(--muted)}
+  #q{
+    width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+    background:var(--panel2);color:var(--text);margin-bottom:14px;font-size:13px;
+  }
+  nav ul{list-style:none;margin:0;padding:0;font-size:13px}
+  nav ul li{margin:1px 0}
+  nav ul a{
+    display:block;padding:4px 8px;border-radius:6px;color:var(--muted);
+  }
+  nav ul a:hover{color:var(--text);background:var(--panel2);text-decoration:none}
+  nav ul a.active{color:#fff;background:linear-gradient(90deg,#1b3a4a,#12202c);border-left:3px solid var(--accent2)}
+  nav ul ul{margin-left:14px;font-size:12px}
+
+  main{flex:1;max-width:980px;padding:34px 44px 120px}
+  h1.title{font-size:30px;margin:.2em 0 .1em;color:#fff}
+  .lead{color:var(--muted);font-size:16px;margin-bottom:26px}
+
+  h2{
+    margin:3em 0 1em;padding-top:14px;font-size:23px;color:#fff;
+    border-top:1px solid var(--border);
+  }
+  h2 .n{color:var(--accent2);font-size:15px;margin-right:8px}
+  h3{margin:2em 0 .6em;font-size:17px;color:var(--accent2)}
+  h4{margin:1.6em 0 .4em;font-size:14.5px;color:#fff}
+  p,li{color:var(--text)}
+  ul,ol{padding-left:22px}
+
+  table{border-collapse:collapse;width:100%;margin:1em 0;font-size:13.5px}
+  th,td{border:1px solid var(--border);padding:7px 10px;text-align:left;vertical-align:top}
+  th{background:var(--panel);color:#fff}
+  tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+
+  .code-wrap{position:relative;margin:1em 0}
+  .code-wrap pre{
+    background:var(--code-bg);border:1px solid var(--border);border-radius:10px;
+    padding:14px 16px;overflow-x:auto;font:13px/1.6 "Cascadia Code",Consolas,monospace;
+    color:#c9d6e3;margin:0;
+  }
+  .copy{
+    position:absolute;top:8px;right:8px;border:1px solid var(--border);border-radius:6px;
+    background:var(--panel);color:var(--muted);font-size:11px;padding:3px 9px;cursor:pointer;
+  }
+  .copy:hover{color:#fff;border-color:var(--accent2)}
+  .k{color:var(--keyword)} .s{color:var(--string)} .c{color:var(--comment)} .n{color:var(--num)}
+
+  blockquote{
+    margin:1em 0;padding:.6em 1em;border-left:3px solid var(--accent2);
+    background:var(--panel);border-radius:0 8px 8px 0;color:var(--muted);
+  }
+  code.inline{background:var(--panel);border:1px solid var(--border);padding:1px 6px;border-radius:5px;font-size:.9em}
+  .flow{display:flex;flex-direction:column;gap:2px;margin:1em 0;font-size:13px}
+  .flow .box{
+    background:var(--panel);border:1px solid var(--border);border-radius:8px;
+    padding:8px 12px;text-align:center;
+  }
+  .flow .arrow{text-align:center;color:var(--accent2)}
+  .hint{color:var(--warn);font-size:13px}
+
+  @media(max-width:820px){
+    .layout{flex-direction:column}
+    nav{width:100%;height:auto;position:static;border-right:0;border-bottom:1px solid var(--border)}
+    main{padding:22px 18px 90px}
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ============================ SIDEBAR ============================ -->
+<nav>
+  <h1>Object3</h1>
+  <p id="subttl">S3-Compatible Object Store — docs</p>
+  <input id="q" type="search" placeholder="Filter sections…  (try: multipart)">
+  <ul id="toc"></ul>
+</nav>
+
+<!-- ============================ CONTENT ============================ -->
+<main>
+  <h1 class="title">Object3 — A Small S3-Compatible Object Store</h1>
+  <p class="lead">A from-scratch S3-compatible object store in Java 17 / Spring Boot / SQLite. Same REST protocol, same SigV4
+  (<code class="inline">AWS4-HMAC-SHA256</code>) auth, multipart uploads, versioning and byte-range downloads — so the AWS SDK,
+  <code class="inline">aws-cli</code> or <code class="inline">boto3</code> can talk to it just by overriding the endpoint URL.</p>
+
+  <blockquote><strong>Two projects share one codebase:</strong> <code class="inline">ObjectStoreDB</code> (the S3 server) and
+  <code class="inline">AdminAPI</code> (seeds users/permissions). They share one SQLite database placed next to both projects:
+  <code class="inline">PROJECT_URL/Object3/data.db</code>.</blockquote>
+
+  <!-- 1 -->
+  <h2 id="s1"><span class="n">1.</span>How a request travels through the system</h2>
+  <div class="flow">
+    <div class="box">AWS SDK / aws-cli / boto3 — SigV4 signed HTTP request</div>
+    <div class="arrow">▼</div>
+    <div class="box">AuthenticationFilter (authn + authz, every request)</div>
+    <div class="arrow">▼ allowed?</div>
+    <div class="box">FileOperationController (REST endpoints)</div>
+    <div class="arrow">▼</div>
+    <div class="box">FileOperationService → <code class="inline">data/</code> on disk (buckets/…, multipart/…)</div>
+    <div class="arrow">▼</div>
+    <div class="box">Repositories + SQLite (versions, objects, credentials, authorization)</div>
+  </div>
+  <p>The filter runs <strong>before</strong> any controller: it authenticates the signature, then authorizes the operation.</p>
+
+  <!-- 2 -->
+  <h2 id="s2"><span class="n">2.</span>Authentication (SigV4 / AWS4-HMAC-SHA256)</h2>
+  <p>Every request carries an <code class="inline">Authorization</code> header proving it was signed with a valid secret key.
+  Object3 recomputes the signature server-side and compares.</p>
+  <div class="code-wrap"><button class="copy">copy</button><pre>Authorization: AWS4-HMAC-SHA256 Credential=test/20260830/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=3f6c…</pre></div>
+  <p>The <code class="inline">Credential=</code> value is the signing <strong>scope</strong>, split by <code class="inline">/</code>:</p>
+  <table>
+    <tr><th>Part</th><th>Example</th><th>Meaning</th></tr>
+    <tr><td><code class="inline">Credential=</code></td><td><code class="inline">test</code></td><td><strong>Access key</strong> — looks up the secret key</td></tr>
+    <tr><td>date</td><td><code class="inline">20260830</code></td><td>Date used to derive the signing key</td></tr>
+    <tr><td>region</td><td><code class="inline">us-east-1</code></td><td>AWS region</td></tr>
+    <tr><td>service</td><td><code class="inline">s3</code></td><td>must be <code class="inline">s3</code></td></tr>
+    <tr><td>terminator</td><td><code class="inline">aws4_request</code></td><td>must be <code class="inline">aws4_request</code></td></tr>
+  </table>
+
+  <h3 id="s21">2.1 The canonical request — the 6 ingredients</h3>
+  <p>A request is signed by building a <strong>canonical (normalized) request</strong> — six blocks joined by newlines:</p>
+  <div class="code-wrap"><button class="copy">copy</button><pre>HTTP Method
+Canonical URI
+Canonical Query String
+Canonical Headers
+
+Signed Headers
+Hashed Payload</pre></div>
+  <table>
+    <tr><th>Line</th><th>What it is in Object3</th><th>Where built</th></tr>
+    <tr><td><strong>HTTP Method</strong></td><td><code class="inline">GET/PUT/POST/DELETE/HEAD</code></td><td><code class="inline">buildCanonicalRequest()</code></td></tr>
+    <tr><td><strong>Canonical URI</strong></td><td>URI with <code class="inline">//</code> collapsed to <code class="inline">/</code></td><td><code class="inline">canonicalUri()</code></td></tr>
+    <tr><td><strong>Canonical Query String</strong></td><td>params sorted by name (values sorted), includes <code class="inline">?uploads</code>, <code class="inline">?partNumber</code>, <code class="inline">?uploadId</code></td><td><code class="inline">canonicalQuery()</code></td></tr>
+    <tr><td><strong>Canonical Headers</strong></td><td>signed headers lower-cased, trimmed, one per line <code class="inline">name:value</code></td><td>rows 94–108</td></tr>
+    <tr><td><strong>Signed Headers</strong></td><td>the <code class="inline">SignedHeaders=…</code> list sorted, joined by <code class="inline">;</code></td><td>row 121</td></tr>
+    <tr><td><strong>Hashed Payload</strong></td><td>hex SHA-256 of body, from <code class="inline">x-amz-content-sha256</code></td><td>rows 110–115</td></tr>
+  </table>
+  <div class="code-wrap"><button class="copy">copy</button><pre><span class="k">private String</span> buildCanonicalRequest(request, signedHeaders, omitEmptyEquals) <span class="k">throws</span> Exception {
+    <span class="k">String</span> method        = request.getMethod();
+    <span class="k">String</span> canonicalUri   = canonicalUri(request.getRequestURI());
+    <span class="k">String</span> canonicalQuery = canonicalQuery(request.getQueryString(), omitEmptyEquals);
+
+    TreeMap&lt;String,String&gt; headers = <span class="k">new</span> TreeMap&lt;&gt;();          <span class="c">// sorted header map</span>
+    <span class="k">for</span> (<span class="k">String</span> name : signedHeaders.split(<span class="s">";"</span>)) {
+        <span class="k">String</span> h = name.trim().toLowerCase();
+        <span class="k">if</span> (!h.isEmpty()) headers.put(h, headerValue(request, h));
+    }
+
+    StringBuilder canonicalHeaders = <span class="k">new</span> StringBuilder();
+    <span class="k">for</span> (entry : headers.entrySet())
+        canonicalHeaders.append(key).append(<span class="s">':'</span>).append(value).append(<span class="s">'\n'</span>);  <span class="c">// name:value\n</span>
+
+    <span class="k">String</span> payloadHash = request.getHeader(<span class="s">"x-amz-content-sha256"</span>);
+    <span class="k">if</span> (payloadHash == <span class="k">null</span> || payloadHash.isEmpty())
+        payloadHash = (<span class="s">"GET"</span>.equals(method) || <span class="s">"HEAD"</span>.equals(method) || <span class="s">"DELETE"</span>.equals(method))
+                ? sha256Hex(<span class="s">""</span>)                                  <span class="c">// empty body</span>
+                : <span class="s">"UNSIGNED-PAYLOAD"</span>;                             <span class="c">// fallback</span>
+
+    <span class="k">return</span> method + <span class="s">'\n'</span> + canonicalUri + <span class="s">'\n'</span> + canonicalQuery + <span class="s">'\n'</span>
+            + canonicalHeaders + <span class="s">'\n'</span>
+            + String.join(<span class="s">";"</span>, headers.keySet()) + <span class="s">'\n'</span>          <span class="c">// SignedHeaders</span>
+            + payloadHash;                                               <span class="c">// Hashed Payload</span>
+}</pre></div>
+
+  <h3 id="s22">2.2 From canonical request to signature</h3>
+  <div class="code-wrap"><button class="copy">copy</button><pre><span class="k">private boolean</span> matches(signingKey, canonicalRequest, amzDate, dateStamp, region, provided) {
+    <span class="k">String</span> stringToSign = <span class="s">"AWS4-HMAC-SHA256\n"</span>
+            + amzDate + <span class="s">"\n"</span>
+            + dateStamp + <span class="s">"/"</span> + region + <span class="s">"/"</span> + SERVICE + <span class="s">"/"</span> + TERMINATOR + <span class="s">"\n"</span>
+            + sha256Hex(canonicalRequest);
+    byte[] signature = hmac(signingKey, stringToSign);
+
+    <span class="k">return</span> MessageDigest.isEqual(            <span class="c">// constant-time compare</span>
+            HexFormat.of().formatHex(signature).getBytes(),
+            provided.getBytes());
+}
+
+<span class="k">private byte[]</span> signingKey(secretKey, dateStamp, region) {        <span class="c">// 4 HMAC layers</span>
+    byte[] kDate    = hmac((<span class="s">"AWS4"</span>+secretKey).getBytes(), dateStamp);
+    byte[] kRegion  = hmac(kDate, region);
+    byte[] kService = hmac(kRegion, SERVICE);        <span class="c">// "s3"</span>
+    <span class="k">return</span> hmac(kService, TERMINATOR);            <span class="c">// "aws4_request"</span>
+}</pre></div>
+  <p><code class="inline">verify()</code> derives the signing key once, then tries two canonical variants (with/without the empty
+  <code class="inline">=</code>) to stay compatible with SDKs, and enforces a <strong>15-minute clock skew</strong>:</p>
+  <div class="code-wrap"><button class="copy">copy</button><pre><span class="k">return</span> Math.abs(System.currentTimeMillis() - requestTime) &lt;= SKEW_MILLIS;  <span class="c">// 15 * 60 * 1000</span></pre></div>
+
+  <h3 id="s23">2.3 The filter — where it is wired in</h3>
+  <p><code class="inline">AuthenticationFilter</code> (a <code class="inline">OncePerRequestFilter</code>) guards every request:</p>
+  <div class="code-wrap"><button class="copy">copy</button><pre><span class="k">String</span> header = request.getHeader(<span class="s">"Authorization"</span>);
+<span class="k">if</span> (header == <span class="k">null</span> || !header.startsWith(<span class="s">"AWS4-HMAC-SHA256"</span>))
+    { reject(response, <span class="s">"AccessDenied"</span>, <span class="s">"Missing or invalid Authorization header"</span>); <span class="k">return</span>; }
+
+credential    = extract(header, <span class="s">"Credential="</span>,   <span class="s">","</span>);
+signedHeaders = extract(header, <span class="s">"SignedHeaders="</span>, <span class="s">","</span>);
+signature     = extract(header, <span class="s">"Signature="</span>,    <span class="k">null</span>);
+
+parts = credential.split(<span class="s">"/"</span>);                     <span class="c">// [key, date, region, s3, aws4_request]</span>
+<span class="k">if</span> (parts.length != 5 || !<span class="s">"s3"</span>.equals(parts[3]) || !<span class="s">"aws4_request"</span>.equals(parts[4]))
+    { reject(response, <span class="s">"AccessDenied"</span>, <span class="s">"Invalid credential scope"</span>); <span class="k">return</span>; }
+
+ok = authService.authenticate(request, parts[0], signature, signedHeaders, parts[1], parts[2]);
+<span class="k">if</span> (!ok) { reject(response, <span class="s">"SignatureDoesNotMatch"</span>, <span class="s">"Signature verification failed"</span>); <span class="k">return</span>; }</pre></div>
+  <p>Errors are S3-style XML with HTTP 403:</p>
+  <div class="code-wrap"><button class="copy">copy</button><pre>response.setStatus(403);  response.setContentType(<span class="s">"application/xml"</span>);
+response.getWriter().write(<span class="s">"&lt;Error&gt;&lt;Code&gt;"</span> + code + <span class="s">"&lt;/Code&gt;&lt;Message&gt;"</span> + message + <span class="s">"&lt;/Message&gt;&lt;/Error&gt;"</span>);</pre></div>
+
+  <h3 id="s24">2.4 AuthenticationService</h3>
+  <p>Turns access key → secret key and delegates crypto:</p>
+  <div class="code-wrap"><button class="copy">copy</button><pre><span class="k">public boolean</span> authenticate(request, accessKey, signature, signedHeaders, dateStamp, region) {
+    Credential credential = repository.findByAccessKey(accessKey);
+    <span class="k">if</span> (credential == <span class="k">null</span>) <span class="k">return false</span>;                       <span class="c">// unknown key</span>
+    <span class="k">return</span> signatureUtils.verify(request, credential.getSecretKey(),
+            dateStamp, region, signedHeaders, signature);
+}</pre></div>
+
+  <!-- 3 -->
+  <h2 id="s3"><span class="n">3.</span>Authorization (permissions per user)</h2>
+  <p><strong>Authentication</strong> answers “who are you?” — <strong>authorization</strong> answers “are you allowed to do this?”</p>
+
+  <h3>3.1 Data model</h3>
+  <table>
+    <tr><th>Table</th><th>Purpose</th></tr>
+    <tr><td><code class="inline">credentials</code></td><td><code class="inline">access_key</code>, <code class="inline">secret_key</code>, <code class="inline">active</code></td></tr>
+    <tr><td><code class="inline">permissions</code></td><td><code class="inline">read</code>, <code class="inline">write</code>, <code class="inline">delete</code>, <code class="inline">admin</code></td></tr>
+    <tr><td><code class="inline">authorization</code></td><td>a <em>pattern</em> per user, e.g. <code class="inline">*</code> or <code class="inline">pics/</code></td></tr>
+    <tr><td><code class="inline">authorization_permission</code></td><td>many-to-many link (authorization ↔ permission)</td></tr>
+  </table>
+  <p>Tables are created in <code class="inline">AutoCreateTable</code> and seeded with the default <code class="inline">test/test</code> user, pattern <code class="inline">*</code>, read/write/delete.</p>
+
+  <h3>3.2 The query — getAuthoritiesByUser</h3>
+  <div class="code-wrap"><button class="copy">copy</button><pre>SELECT c.access_key, a.pattern, p.authority
+FROM authorization_permission ap
+JOIN authorization a ON a.id = ap.authorization_id
+JOIN permissions p    ON p.id = ap.permission_id
+JOIN credentials c    ON c.id = a.user_id
+WHERE c.access_key = ?
+ORDER BY a.pattern                    <span class="c">-- grouped into one Authorization per pattern</span></pre></div>
+
+  <h3>3.3 Decision — AuthorizationService</h3>
+  <div class="code-wrap"><button class="copy">copy</button><pre><span class="k">public boolean</span> isAuthorized(uri, accessKey, authority) {
+    <span class="k">return</span> repository.getAuthoritiesByUser(accessKey).stream()
+            .anyMatch(auth -&gt; auth.getAuthorities().contains(authority)
+                    &amp;&amp; matches(auth.getPattern(), uri));
+}
+
+<span class="k">public boolean</span> matches(pattern, uri) {
+    <span class="k">if</span> (pattern.endsWith(<span class="s">"*"</span>)) {
+        <span class="k">String</span> prefix = pattern.substring(0, pattern.length()-1);
+        <span class="k">return</span> uri.startsWith(prefix);          <span class="c">// "pics/*" → any prefix</span>
+    }
+    <span class="k">return</span> uri.equals(pattern) || uri.startsWith(pattern + <span class="s">"/"</span>);
+}</pre></div>
+  <p>The filter maps method → authority and builds the resource path:</p>
+  <div class="code-wrap"><button class="copy">copy</button><pre><span class="k">String</span> authority = <span class="k">switch</span> (request.getMethod()) {
+    <span class="k">case</span> <span class="s">"GET"</span>, <span class="s">"HEAD"</span>      -&gt; <span class="s">"read"</span>;
+    <span class="k">case</span> <span class="s">"PUT"</span>, <span class="s">"POST"</span>      -&gt; <span class="s">"write"</span>;
+    <span class="k">case</span> <span class="s">"DELETE"</span>           -&gt; <span class="s">"delete"</span>;
+    <span class="k">default</span>               -&gt; <span class="s">""</span>;
+};
+<span class="k">String</span> resource = bucket + (key.isEmpty() ? <span class="s">""</span> : <span class="s">"/"</span> + key);
+<span class="k">if</span> (!authorizationService.isAuthorized(resource, accessKey, authority))
+    { reject(response, <span class="s">"AccessDenied"</span>, <span class="s">"Not authorized for this operation on "</span> + key); <span class="k">return</span>; }</pre></div>
+
+  <h3>3.4 Where accounts come from (AdminAPI)</h3>
+  <p><code class="inline">AdminInitializer</code> seeds the shared DB at startup: creates the 4 permissions, an
+  <code class="inline">admin/admin-secret</code> user, pattern <code class="inline">*</code>, and links all permissions:</p>
+  <div class="code-wrap"><button class="copy">copy</button><pre><span class="k">for</span> (authority : List.of(<span class="s">"read"</span>, <span class="s">"write"</span>, <span class="s">"delete"</span>, <span class="s">"admin"</span>))
+    createPermissionIfNotExists(authority);          <span class="c">// + admin user, "*" authz, 4 links</span></pre></div>
+
+  <!-- 4 -->
+  <h2 id="s4"><span class="n">4.</span>Storage layout on disk</h2>
+  <div class="code-wrap"><button class="copy">copy</button><pre>data/
+├─ buckets/                  <span class="c">← completed objects</span>
+│  └─ &lt;bucket&gt;/objects/&lt;key&gt;/
+│     ├─ &lt;versionId&gt;         <span class="c">← one file per version (UUID)</span>
+│     └─ …
+└─ multipart/                <span class="c">← in-progress multipart uploads</span>
+   └─ &lt;bucket&gt;/&lt;key&gt;/&lt;uploadId&gt;/
+      ├─ part-1  +  part-1.etag    <span class="c">← bytes + stored MD5 hex</span>
+      ├─ part-2  +  part-2.etag
+      └─ …</pre></div>
+  <p>Each write creates a fresh <strong>version id</strong>; SQLite (<code class="inline">versions</code>) tracks the latest.</p>
+
+  <!-- 5 -->
+  <h2 id="s5"><span class="n">5.</span>Uploading objects</h2>
+
+  <h3>5.1 Simple upload — PUT</h3>
+  <div class="code-wrap"><button class="copy">copy</button><pre><span class="k">Path</span> versionFile = objectDir.resolve(versionId);
+InputStream in = (<span class="s">"aws-chunked"</span>.equalsIgnoreCase(request.getHeader(<span class="s">"Content-Encoding"</span>)))
+        ? <span class="k">new</span> AwsChunkedInputStream(request.getInputStream())
+        : request.getInputStream();
+
+<span class="k">try</span> (<span class="k">var</span> out = Files.newOutputStream(versionFile, CREATE, TRUNCATE_EXISTING, WRITE)) {
+    <span class="k">byte</span>[] buf = <span class="k">new</span> <span class="k">byte</span>[8192]; <span class="k">int</span> read;
+    <span class="k">while</span> ((read = in.read(buf)) != -1) out.write(buf, 0, read);
+}</pre></div>
+
+  <h3>5.2 Multipart upload — 4 steps (big files)</h3>
+  <table>
+    <tr><th>Method</th><th>Path + query</th><th>What happens</th></tr>
+    <tr><td><code class="inline">POST</code></td><td><code class="inline">/{bucket}/**?uploads</code></td><td>start → returns XML <code class="inline">UploadId</code>, creates parts folder</td></tr>
+    <tr><td><code class="inline">PUT</code></td><td><code class="inline">/{bucket}/**?partNumber=N&amp;uploadId=U</code></td><td>store <code class="inline">part-N</code> + <code class="inline">.etag</code>, returns ETag</td></tr>
+    <tr><td><code class="inline">POST</code></td><td><code class="inline">/{bucket}/**?uploadId=U</code></td><td>verify ETags, merge parts in order → version file</td></tr>
+    <tr><td><code class="inline">DELETE</code></td><td><code class="inline">/{bucket}/**?uploadId=U</code></td><td>abort — delete the parts folder</td></tr>
+  </table>
+  <p>Completion merges only listed parts, sorted by number, validating each ETag:</p>
+  <div class="code-wrap"><button class="copy">copy</button><pre><span class="k">for</span> (entry : parts.entrySet().stream().sorted(byPartNumber)) {
+    <span class="k">if</span> (!Files.readString(etagPath).trim().equals(clientETag))
+        <span class="k">throw new</span> RuntimeException(<span class="s">"ETag mismatch for part "</span> + partNumber);
+    <span class="k">try</span> (InputStream in = Files.newInputStream(partPath)) { in.transferTo(out); }  <span class="c">// append</span>
+}</pre></div>
+
+  <h3>5.3 aws-chunked bodies</h3>
+  <p>The AWS SDK streams signed bodies as <code class="inline">Content-Encoding: aws-chunked</code> — chunks of
+  <code class="inline">&lt;hex-size&gt;[;chunk-signature=…]\r\n payload \r\n</code>, ending with <code class="inline">0\r\n\r\n</code>.</p>
+  <div class="code-wrap"><button class="copy">copy</button><pre><span class="k">private void</span> readNextChunkHeader() <span class="k">throws</span> IOException {
+    <span class="k">String</span> header  = readLine();                          <span class="c">// e.g. "10000;chunk-signature=abc"</span>
+    <span class="k">String</span> hexSize = header.split(<span class="s">";"</span>)[0];
+    <span class="k">int</span> size = Integer.parseInt(hexSize.trim(), 16);
+    <span class="k">if</span> (size == 0) { finished = <span class="k">true</span>; readLine(); <span class="k">return</span>; }   <span class="c">// final chunk</span>
+    remainingChunkBytes = size;
+}</pre></div>
+
+  <h3 id="s54">5.4 Resumable upload — “skip parts that already exist”</h3>
+  <p>Each part lives in its own file + ETag marker. If the connection drops mid-part, the client re-sends that
+  <code class="inline">partNumber</code>. And if the server already has the part, it short-circuits before writing anything:</p>
+  <div class="code-wrap"><button class="copy">copy</button><pre><span class="k">Path</span> partPath = dir.resolve(<span class="s">"part-"</span> + partNumber);
+<span class="k">Path</span> etagPath = dir.resolve(<span class="s">"part-"</span> + partNumber + <span class="s">".etag"</span>);
+
+<span class="k">if</span> (Files.exists(partPath) &amp;&amp; Files.exists(etagPath)) {
+    <span class="k">String</span> existingEtag = Files.readString(etagPath).trim();
+    log.info(<span class="s">"Part "</span> + partNumber + <span class="s">" already exists → skip re-upload (ETag: "</span> + existingEtag + <span class="s">")"</span>);
+
+    <span class="k">try</span> (InputStream skip = request.getInputStream()) {
+        skip.transferTo(OutputStream.nullOutputStream());   <span class="c">// drain body, keep connection clean</span>
+    }
+    <span class="k">return</span> existingEtag;                                 <span class="c">// old ETag — do not touch the file</span>
+}</pre></div>
+  <p>Step by step:</p>
+  <ol>
+    <li>Builds paths for the part file and its <code class="inline">.etag</code> marker.</li>
+    <li>Checks <strong>both</strong> exist — the ETag is written only <em>after</em> a full successful write, so a
+    half-written part (crash mid-stream) is treated as missing and re-uploaded.</li>
+    <li>Drains the incoming body to <code class="inline">nullOutputStream()</code> so Tomcat keeps the connection reusable.</li>
+    <li>Returns the stored ETag → client sees <code class="inline">200</code> and completes normally.</li>
+  </ol>
+  <p class="hint">That is the full “continue from the last part” behaviour: parts are idempotent, re-sending one is harmless and fast.</p>
+
+  <!-- 6 -->
+  <h2 id="s6"><span class="n">6.</span>Downloading objects</h2>
+
+  <h3>6.1 Full download</h3>
+  <div class="code-wrap"><button class="copy">copy</button><pre><span class="k">String</span> versionId = request.getParameter(<span class="s">"versionId"</span>);
+<span class="k">if</span> (versionId == <span class="k">null</span>) versionId = versionRepository.getLatest(bucket, key);  <span class="c">// latest version</span>
+
+<span class="k">if</span> (<span class="s">"Range"</span> header absent) {                                     <span class="c">// whole file</span>
+    <span class="k">return</span> ResponseEntity.ok()
+        .header(<span class="s">"Content-Type"</span>, (String) meta.get(<span class="s">"content_type"</span>))
+        .header(<span class="s">"Content-Length"</span>, String.valueOf(fileSize))
+        .body(<span class="k">new</span> InputStreamResource(in));
+}</pre></div>
+
+  <h3>6.2 Range / resume downloads</h3>
+  <p>This is the download resume feature: the client asks for the byte offset where it stopped.</p>
+  <div class="code-wrap"><button class="copy">copy</button><pre>range = range.replace(<span class="s">"bytes="</span>, <span class="s">""</span>).trim();
+<span class="k">String</span>[] parts = range.split(<span class="s">"-"</span>);
+
+<span class="k">long</span> start = Long.parseLong(parts[0]);
+<span class="k">long</span> end   = (parts.length &gt; 1 &amp;&amp; !parts[1].isEmpty()) ? Long.parseLong(parts[1]) : fileSize - 1;
+<span class="k">long</span> contentLength = end - start + 1;
+
+RandomAccessFile raf = <span class="k">new</span> RandomAccessFile(path.toFile(), <span class="s">"r"</span>);
+raf.seek(start);                 <span class="c">// ← jump straight to the byte we stopped at</span></pre></div>
+  <p>A byte-limited stream wraps the <code class="inline">RandomAccessFile</code>, then the response is <strong>206 Partial Content</strong>:</p>
+  <div class="code-wrap"><button class="copy">copy</button><pre><span class="k">return</span> ResponseEntity.status(206)
+        .header(<span class="s">"Accept-Ranges"</span>, <span class="s">"bytes"</span>)
+        .header(<span class="s">"Content-Range"</span>, <span class="s">"bytes "</span> + start + <span class="s">"-"</span> + end + <span class="s">"/"</span> + fileSize)
+        .header(<span class="s">"Content-Length"</span>, String.valueOf(contentLength))
+        .body(<span class="k">new</span> InputStreamResource(limitedStream));</pre></div>
+  <p>A client that lost the connection resumes with <code class="inline">Range: bytes=&lt;count&gt;-</code>; the server seeks to that
+  byte with <code class="inline">raf.seek(start)</code> and continues from exactly there.</p>
+
+  <!-- 7 -->
+  <h2 id="s7"><span class="n">7.</span>Project tree</h2>
+  <div class="code-wrap"><button class="copy">copy</button><pre>Object3/
+├─ data.db                       <span class="c">← SHARED SQLite db (both projects)</span>
+├─ ObjectStoreDB/                <span class="c">← the S3-compatible server</span>
+│  ├─ pom.xml                    <span class="c">Spring Boot 4.0.5, java 17, sqlite-jdbc</span>
+│  ├─ data/
+│  │  ├─ buckets/&lt;bucket&gt;/objects/&lt;key&gt;/&lt;versionId&gt;
+│  │  └─ multipart/&lt;bucket&gt;/&lt;key&gt;/&lt;uploadId&gt;/…
+│  └─ src/main/java/org/shalash/objectstoredb/
+│     ├─ ObjectStoreDbApplication.java      entry point
+│     ├─ controller/FileOperationController.java     bucket/** endpoints
+│     ├─ service/FileOperationService.java           all object I/O + resume logic
+│     ├─ service/AuthenticationService.java          access-key → secret → verify
+│     ├─ service/AuthorizationService.java           pattern + authority decision
+│     ├─ repository/CredentialRepository.java        SQL: credentials
+│     ├─ repository/AuthoretiesRepository.java       SQL: per-user authorities
+│     ├─ repository/VersionRepository.java           SQL: versions
+│     ├─ repository/MetadataRepository.java          SQL: object metadata
+│     ├─ dto/Credential.java  dto/Authorization.java
+│     ├─ config/AuthenticationFilter.java            authn + authz for every call
+│     ├─ config/SQLiteConfig.java                   jdbc:sqlite:../data.db
+│     ├─ config/AutoCreateTable.java                tables + seed test/test
+│     ├─ config/TomcatConfig.java                   timeouts, 2GB post
+│     ├─ utils/SignatureUtils.java                  SigV4 verify
+│     ├─ utils/AwsChunkedInputStream.java           aws-chunked decoder
+│     ├─ utils/FileUtils.java                       extractKey / parts XML / hex
+│     └─ handeler/S3ErrorHandler.java               XML InternalError (500)
+└─ AdminAPI/                     <span class="c">← admin companion (users &amp; permissions)</span>
+   ├─ pom.xml                    Spring Boot 4.1.0 + JPA
+   └─ src/main/java/org/shalash/adminapi/
+      ├─ config/AdminInitializer.java              seeds read/write/delete/admin
+      ├─ controller/UserController.java            create/list users
+      ├─ controller/AutherizationController.java   grant patterns/permissions
+      └─ resources/application.properties          jdbc:sqlite:../data.db, port 8081</pre></div>
+
+  <!-- 8 -->
+  <h2 id="s8"><span class="n">8.</span>Function-by-function reference — the service package</h2>
+
+  <h3>AuthenticationService</h3>
+  <table>
+    <tr><th style="width:34%">Function</th><th>What it does</th></tr>
+    <tr><td><code class="inline">authenticate(request, accessKey, signature, signedHeaders, dateStamp, region)</code></td>
+    <td>Loads the secret key for <code class="inline">accessKey</code> (unknown → <code class="inline">false</code>), then verifies the SigV4 signature via <code class="inline">SignatureUtils.verify</code>.</td></tr>
+  </table>
+
+  <h3>AuthorizationService</h3>
+  <table>
+    <tr><th style="width:34%">Function</th><th>What it does</th></tr>
+    <tr><td><code class="inline">isAuthorized(uri, accessKey, authority)</code></td><td>Loads the user’s <code class="inline">(pattern, authorities)</code> rows and returns <code class="inline">true</code> if any pattern contains the required authority and matches the resource.</td></tr>
+    <tr><td><code class="inline">matches(pattern, uri)</code></td><td><code class="inline">*</code>-suffixed → prefix match; otherwise exact or path-prefix match.</td></tr>
+  </table>
+
+  <h3>FileOperationService</h3>
+  <table>
+    <tr><th style="width:30%">Function</th><th>What it does</th></tr>
+    <tr><td><code class="inline">init()</code></td><td><code class="inline">@PostConstruct</code> — resolves <code class="inline">root</code> from the <code class="inline">${data}</code> property.</td></tr>
+    <tr><td><code class="inline">startMultipart(request, bucket)</code></td><td>Creates <code class="inline">data/multipart/&lt;bucket&gt;/&lt;key&gt;/&lt;uploadId&gt;</code> (random UUID) and returns the S3 initiate XML with the <code class="inline">UploadId</code>.</td></tr>
+    <tr><td><code class="inline">uploadPart(request, bucket, partNumber, uploadId)</code></td><td>Stores one part (raw or aws-chunked), computes MD5 → <code class="inline">part-N.etag</code>, returns ETag. <strong>Resume guard:</strong> if part+etag already exist it drains the body and returns the stored ETag.</td></tr>
+    <tr><td><code class="inline">completeUpload(request, bucket, xml)</code></td><td>Parses the completion XML, merges listed parts in order (ETag-checked) into a new <code class="inline">versionId</code>, records version + metadata, returns completion XML + version id.</td></tr>
+    <tr><td><code class="inline">AbortMultipartFileUpload(request, bucket)</code></td><td>Deletes the multipart folder recursively (abort).</td></tr>
+    <tr><td><code class="inline">UploadFileInOneShot(request, bucket)</code></td><td>Simple PUT — writes whole body to <code class="inline">objects/&lt;key&gt;/&lt;versionId&gt;</code>, records metadata, returns version id.</td></tr>
+    <tr><td><code class="inline">downloadFile(request, bucket)</code></td><td>Serves GET — full <code class="inline">200</code>, or <code class="inline">206</code> Partial Content for a <code class="inline">Range</code> header using <code class="inline">RandomAccessFile.seek</code>.</td></tr>
+    <tr><td><code class="inline">deleteFile(request, bucket)</code></td><td>Soft-delete: marks version <code class="inline">deleted=1</code>, removes the file.</td></tr>
+    <tr><td><code class="inline">getObjectHeaders(request, bucket)</code></td><td>Backs <code class="inline">HEAD</code> — returns stored metadata (content-type, size, version id).</td></tr>
+  </table>
+
+  <h3>Helpers those services rely on</h3>
+  <ul>
+    <li><code class="inline">SignatureUtils.verify</code> → <code class="inline">buildCanonicalRequest</code>, <code class="inline">matches</code>, <code class="inline">signingKey</code>, <code class="inline">withinSkew</code>, <code class="inline">canonicalQuery</code>, <code class="inline">canonicalUri</code>, <code class="inline">headerValue</code>, <code class="inline">normalize</code>, <code class="inline">hmac</code>, <code class="inline">sha256Hex</code>.</li>
+    <li><code class="inline">FileUtils.extractKey</code> strips <code class="inline">/bucket/</code> from the URI; <code class="inline">extractPartsFromXML</code> parses completion XML; <code class="inline">bytesToHex</code> formats digests.</li>
+    <li><code class="inline">AwsChunkedInputStream</code> — <code class="inline">read()</code>, <code class="inline">readNextChunkHeader()</code>, <code class="inline">readLine()</code>.</li>
+  </ul>
+
+  <!-- 9 -->
+  <h2 id="s9"><span class="n">9.</span>Controller endpoint reference</h2>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Query</th><th>Handler → Service</th></tr>
+    <tr><td><code class="inline">POST</code></td><td><code class="inline">/{bucket}/**</code></td><td><code class="inline">uploads</code></td><td><code class="inline">startMultipart → startMultipart</code></td></tr>
+    <tr><td><code class="inline">PUT</code></td><td><code class="inline">/{bucket}/**</code></td><td><code class="inline">partNumber, uploadId</code></td><td><code class="inline">uploadPart → uploadPart</code></td></tr>
+    <tr><td><code class="inline">POST</code></td><td><code class="inline">/{bucket}/**</code></td><td><code class="inline">uploadId</code></td><td><code class="inline">completeMultipart → completeUpload</code></td></tr>
+    <tr><td><code class="inline">DELETE</code></td><td><code class="inline">/{bucket}/**</code></td><td><code class="inline">uploadId</code></td><td><code class="inline">abortMultipart → AbortMultipartFileUpload</code></td></tr>
+    <tr><td><code class="inline">PUT</code></td><td><code class="inline">/{bucket}/**</code></td><td>—</td><td><code class="inline">upload → UploadFileInOneShot</code></td></tr>
+    <tr><td><code class="inline">GET</code></td><td><code class="inline">/{bucket}/**</code></td><td><code class="inline">versionId?</code></td><td><code class="inline">download → downloadFile</code></td></tr>
+    <tr><td><code class="inline">DELETE</code></td><td><code class="inline">/{bucket}/**</code></td><td><code class="inline">versionId?</code></td><td><code class="inline">delete → deleteFile</code></td></tr>
+    <tr><td><code class="inline">HEAD</code></td><td><code class="inline">/{bucket}/**</code></td><td><code class="inline">versionId?</code></td><td><code class="inline">head → getObjectHeaders</code></td></tr>
+  </table>
+  <p>Versioning: each write creates a new version id; <code class="inline">GET/HEAD/DELETE</code> without <code class="inline">?versionId=</code> use the latest (<code class="inline">VersionRepository.getLatest</code>).</p>
+
+  <!-- 10 -->
+  <h2 id="s10"><span class="n">10.</span>Configuration summary</h2>
+  <table>
+    <tr><th>Concern</th><th>Where</th><th>Value</th></tr>
+    <tr><td>Object storage root</td><td><code class="inline">application.properties data=</code></td><td><code class="inline">data/</code></td></tr>
+    <tr><td>Database</td><td><code class="inline">SQLiteConfig</code></td><td><code class="inline">jdbc:sqlite:../data.db</code> (shared, relative to working dir)</td></tr>
+    <tr><td>Tomcat</td><td><code class="inline">TomcatConfig</code></td><td>10-min timeouts, 2 GB max POST</td></tr>
+    <tr><td>Multipart limits</td><td><code class="inline">application.properties</code></td><td>2 GB max-file/request</td></tr>
+    <tr><td>Default user</td><td><code class="inline">AutoCreateTable</code></td><td><code class="inline">test/test</code>, pattern <code class="inline">*</code>, read/write/delete</td></tr>
+  </table>
+
+  <!-- 11 -->
+  <h2 id="s11"><span class="n">11.</span>Testing with the AWS Java SDK v2</h2>
+  <div class="code-wrap"><button class="copy">copy</button><pre>S3Client client = S3Client.builder()
+        .endpointOverride(URI.create(<span class="s">"http://localhost:8080"</span>))
+        .forcePathStyle(<span class="k">true</span>)
+        .region(Region.US_EAST_1)
+        .credentialsProvider(StaticCredentialsProvider.create(
+                AwsBasicCredentials.create(<span class="s">"test"</span>, <span class="s">"test"</span>)))
+        .build();
+
+<span class="c">// one-shot PUT</span>
+client.putObject(PutObjectRequest.builder().bucket(<span class="s">"my-bucket"</span>).key(<span class="s">"video.mp4"</span>).build(),
+                 RequestBody.fromFile(Paths.get(<span class="s">"D:/file.mp4"</span>)));
+
+<span class="c">// resume download: bytes 100..end</span>
+client.getObject(GetObjectRequest.builder().bucket(<span class="s">"my-bucket"</span>).key(<span class="s">"video.mp4"</span>)
+        .range(<span class="s">"bytes=100-"</span>).build(), Paths.get(<span class="s">"D:/downloaded.mp4"</span>));</pre></div>
+
+  <!-- 12 -->
+  <h2 id="s12"><span class="n">12.</span>Known behaviours &amp; caveats</h2>
+  <ul>
+    <li><code class="inline">../data.db</code> is <strong>relative to the working directory</strong> — start each app from its own folder, otherwise you get <code class="inline">SQLITE_CANTOPEN</code>.</li>
+    <li>Simple uploads are not byte-resumable — use <strong>multipart</strong> for big files (that is where per-part resume lives).</li>
+    <li><code class="inline">completeUpload</code> stores <code class="inline">request.getContentLengthLong()</code> from the completion request, not the object size.</li>
+    <li>Signatures compare in constant time (<code class="inline">MessageDigest.isEqual</code>) with a 15-minute clock-skew window.</li>
+  </ul>
+
+</main>
+</div>
+
+<script>
+  window.addEventListener('load', () => {
+    // ---- build TOC from h2/h3 ----
+    const toc   = document.getElementById('toc');
+    const heads = document.querySelectorAll('main h2[id], main h3');
+    const links = [];
+    const secs  = [];
+    heads.forEach(h => {
+      const li = document.createElement('li');
+      const a  = document.createElement('a');
+      a.href = '#' + h.id;
+      a.textContent = h.textContent.trim();
+      const n = h.id;
+      if (h.tagName === 'H2') { li.dataset.lvl = '2'; secs.push({id:n, text:h.textContent.trim().toLowerCase()}); }
+      else { li.dataset.lvl = '3'; }
+      li.dataset.id = n;
+      li.appendChild(a); toc.appendChild(li);
+      links.push({a, id:n});
+    });
+    // style h3 items as sub-lists
+    toc.querySelectorAll('[data-lvl="3"]').forEach(li => li.style.cssText += 'border-left:1px solid var(--border);margin-left:6px;padding-left:6px;');
+
+    // ---- copy buttons ----
+    document.querySelectorAll('.code-wrap').forEach(wrap => {
+      const btn = wrap.querySelector('.copy');
+      const pre = wrap.querySelector('pre');
+      btn.addEventListener('click', async () => {
+        const text = pre.innerText;
+        try { await navigator.clipboard.writeText(text); }
+        catch (e) { const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+        btn.textContent = 'copied!';
+        setTimeout(() => btn.textContent = 'copy', 1200);
+      });
+    });
+
+    // ---- scroll-spy ----
+    const spy = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          links.forEach(l => l.a.classList.toggle('active', l.id === e.target.id));
+        }
+      });
+    }, {rootMargin:'-20% 0px -70% 0px'});
+    heads.forEach(h => spy.observe(h));
+
+    // ---- filter ----
+    const q = document.getElementById('q');
+    q.addEventListener('input', e => {
+      const t = e.target.value.trim().toLowerCase();
+      secs.forEach(s => {
+        const li = toc.querySelector(`[data-id="${s.id}"]`);
+        if (li) li.style.display = (!t || s.text.includes(t)) ? '' : 'none';
+      });
+      // also hide their children
+      if (t) {
+        links.forEach(l => {
+          const parent = l.a.closest('li');
+          parent.style.display = parent.style.display === 'none' ? 'none' : '';
+        });
+      }
+    });
+  });
+</script>
+</body>
+</html>

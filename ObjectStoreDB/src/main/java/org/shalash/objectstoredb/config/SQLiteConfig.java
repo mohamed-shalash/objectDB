@@ -23,6 +23,5 @@ public class SQLiteConfig {
         return new JdbcTemplate(ds);
     }
 
-    // مثلاً في FileOperationController أو Application class
 
 }
