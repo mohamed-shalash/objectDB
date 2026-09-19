@@ -1,5 +1,10 @@
 # Object3 — S3-Compatible Object Storage
 
+<p align="center">
+  <img src="./utils/logo.png" alt="Object3 Logo" width="180">
+</p>
+
+
 An object storage system built from scratch with **Java / Spring Boot**, following the same style as **Amazon S3** — supporting multipart uploads for large files, versioning, HTTP range requests, and **AWS Signature V4** authentication.
 
 The project is split into two main modules:
